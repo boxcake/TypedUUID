@@ -1,0 +1,114 @@
+site_name: TypedUUID
+site_description: Type-safe UUID management with prefix identification for Python
+site_url: https://boxcake.github.io/TypedUUID/
+repo_url: https://github.com/boxcake/TypedUUID
+repo_name: boxcake/TypedUUID
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            merge_init_into_class: true
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quickstart.md
+  - User Guide:
+      - Core Concepts: guide/concepts.md
+      - Creating TypedUUIDs: guide/creating.md
+      - Parsing and Validation: guide/parsing.md
+      - Short Encoding: guide/short-encoding.md
+      - Serialization: guide/serialization.md
+  - Framework Integration:
+      - SQLAlchemy: integrations/sqlalchemy.md
+      - Pydantic: integrations/pydantic.md
+      - FastAPI: integrations/fastapi.md
+  - Examples:
+      - Cookbook: examples/cookbook.md
+      - Real-World Patterns: examples/patterns.md
+  - Tutorial:
+      - Building a User System: tutorial/user-system.md
+  - API Reference:
+      - TypedUUID: api/typeduuid.md
+      - Factory Functions: api/factory.md
+      - Exceptions: api/exceptions.md
+      - Adapters: api/adapters.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/boxcake/TypedUUID
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/typed-uuid/
+
+copyright: Copyright &copy; 2024 TypedUUID Contributors
