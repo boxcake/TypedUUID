@@ -1,16 +1,21 @@
 # typed_uuid/adapters/fastapi.py
+from typing import Type, Any
+
 try:
     from fastapi import Path
-    from typing import Annotated, Type, Any
+    from typing import Annotated
     from ..core import TypedUUID
 
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
+    TypedUUID = None
 
 
-def add_fastapi_methods(cls: Type[TypedUUID]) -> None:
+def add_fastapi_methods(cls: Type['TypedUUID']) -> None:
     """Add FastAPI-specific methods to a TypedUUID class."""
+    if not FASTAPI_AVAILABLE:
+        return
 
     @classmethod
     def path_param(cls, description: str = None) -> Any:

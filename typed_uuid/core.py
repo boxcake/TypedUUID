@@ -13,9 +13,10 @@ Basic usage:
 #    'user-550e8400-e29b-41d4-a716-446655440000'
 """
 
-from typing import Any, Type, Optional, TypeVar, cast, ClassVar, Union, Dict
+from typing import Any, Type, Optional, TypeVar, cast, ClassVar, Union, Dict, List, Set
 from uuid import UUID, uuid4
 import re
+import threading
 from .exceptions import InvalidTypeIDError, InvalidUUIDError
 from logging import getLogger
 
@@ -55,14 +56,17 @@ class TypedUUID:
     MAX_TYPE_LENGTH: int = 8
     _type_id: ClassVar[str] = None
     _uuid_pattern: ClassVar[re.Pattern] = re.compile(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        re.IGNORECASE
     )
     _class_registry: ClassVar[Dict[str, Type['TypedUUID']]] = {}
+    _registry_lock: ClassVar[threading.Lock] = threading.Lock()
 
     @classmethod
     def get_registered_class(cls, type_id: str) -> Optional[Type['TypedUUID']]:
         """Get an existing TypedUUID class for a type_id if one exists."""
-        return cls._class_registry.get(type_id)
+        with cls._registry_lock:
+            return cls._class_registry.get(type_id)
 
     def __init__(
             self,
@@ -141,9 +145,10 @@ class TypedUUID:
             return self.__key() == other.__key()
         if isinstance(other, str):
             try:
-                other_uuid = TypedUUID.from_string(other)
+                # Use the instance's class to parse the string
+                other_uuid = type(self).from_string(other)
                 return self.__key() == other_uuid.__key()
-            except (ValueError, AttributeError, InvalidUUIDError):
+            except (ValueError, AttributeError, InvalidUUIDError, InvalidTypeIDError, TypeError):
                 return False
         return NotImplemented
 
@@ -153,9 +158,10 @@ class TypedUUID:
             return self.__key() != other.__key()
         if isinstance(other, str):
             try:
-                other_uuid = TypedUUID.from_string(other)
+                # Use the instance's class to parse the string
+                other_uuid = type(self).from_string(other)
                 return self.__key() != other_uuid.__key()
-            except (ValueError, AttributeError, InvalidUUIDError):
+            except (ValueError, AttributeError, InvalidUUIDError, InvalidTypeIDError, TypeError):
                 return True
         return NotImplemented
 
@@ -313,14 +319,15 @@ class TypedUUID:
 
     # Type registry methods
     @classmethod
-    def list_registered_types(cls) -> list[str]:
+    def list_registered_types(cls) -> List[str]:
         """
         List all registered type IDs.
 
         Returns:
-            list[str]: List of registered type IDs
+            List[str]: List of registered type IDs
         """
-        return list(cls._class_registry.keys())
+        with cls._registry_lock:
+            return list(cls._class_registry.keys())
 
     @classmethod
     def get_class_by_type_id(cls, type_id: str) -> Optional[Type['TypedUUID']]:
@@ -333,7 +340,8 @@ class TypedUUID:
         Returns:
             Optional[Type['TypedUUID']]: The registered class or None if not found
         """
-        return cls._class_registry.get(type_id)
+        with cls._registry_lock:
+            return cls._class_registry.get(type_id)
 
     @classmethod
     def is_type_registered(cls, type_id: str) -> bool:
@@ -346,10 +354,11 @@ class TypedUUID:
         Returns:
             bool: True if type_id is registered, False otherwise
         """
-        return type_id in cls._class_registry
+        with cls._registry_lock:
+            return type_id in cls._class_registry
 
     @classmethod
-    def get_supported_adapters(cls) -> set[str]:
+    def get_supported_adapters(cls) -> Set[str]:
         """Return set of supported adapter names for this class."""
         supported = set()
         if hasattr(cls, '__composite_values__'):
@@ -379,82 +388,89 @@ class TypedUUID:
         Example:
             @router.get("/{user_id}")
             async def get_user(user_id: UserUUID.path_param()): ...
+
+        Raises:
+            NotImplementedError: If FastAPI is not installed
         """
-        return None
+        raise NotImplementedError(
+            "FastAPI is not installed. Install it with: pip install fastapi"
+        )
 
 def create_typed_uuid_class(class_name: str, type_id: str) -> Type[T]:
     """
     Create or retrieve a TypedUUID subclass with the specified type_id.
     If a class with the given type_id already exists, returns the existing class.
 
+    This function is thread-safe.
+
     Args:
         class_name: Name for the new class
-        type_id: Type identifier for the UUID
+        type_id: Type identifier for the UUID (max 8 alphanumeric characters)
 
     Returns:
         Type[T]: New or existing TypedUUID subclass
     """
-
-    # Check if we already have a class for this type_id
-    existing_class = TypedUUID.get_registered_class(type_id)
-    if existing_class is not None:
-        return cast(Type[T], existing_class)
-
     # Use TypedUUID's validation method instead of duplicating the check
     TypedUUID._validate_type_id(type_id)  # This will raise InvalidTypeIDError if invalid
 
-    class_name_with_suffix = f"{class_name}UUID"
+    with TypedUUID._registry_lock:
+        # Check if we already have a class for this type_id (inside lock for thread safety)
+        existing_class = TypedUUID._class_registry.get(type_id)
+        if existing_class is not None:
+            return cast(Type[T], existing_class)
 
-    def __init__(self, uuid_value: Optional[Union[UUID, str]] = None):
-        """Initialize a new typed UUID instance."""
-        super(self.__class__, self).__init__(type_id=type_id, uuid_value=uuid_value)
+        class_name_with_suffix = f"{class_name}UUID"
 
-    @classmethod
-    def validate(cls, v: Any) -> T:
-        """Validate method specific to the created class"""
-        try:
-            if isinstance(v, str):
-                # For string input, try parsing it
-                if '-' in v:
-                    parsed_type, uuid_str = v.split('-', 1)
-                    if parsed_type == type_id:
-                        return cls(uuid_value=uuid_str)
-                # If no type prefix or wrong prefix, try whole string as UUID
-                return cls(uuid_value=v)
-            elif isinstance(v, UUID):
-                return cls(uuid_value=v)
-            elif isinstance(v, cls):
-                return v
-            elif isinstance(v, TypedUUID):
-                if v.type_id != type_id:
-                    raise ValueError(f"Invalid type_id for {cls.__name__}")
-                return cls(v.uuid)
-        except ValueError as e:
-            raise ValueError(f"Invalid {cls.__name__} format: {str(e)}")
-        raise ValueError(f"Invalid type for {cls.__name__}")
+        def __init__(self, uuid_value: Optional[Union[UUID, str]] = None):
+            """Initialize a new typed UUID instance."""
+            super(self.__class__, self).__init__(type_id=type_id, uuid_value=uuid_value)
 
-    @classmethod
-    def generate(cls) -> T:
-        """Generate a new instance with a random UUID."""
-        return cls()
+        @classmethod
+        def validate(cls, v: Any) -> T:
+            """Validate method specific to the created class"""
+            try:
+                if isinstance(v, str):
+                    # For string input, try parsing it
+                    if '-' in v:
+                        parsed_type, uuid_str = v.split('-', 1)
+                        if parsed_type == type_id:
+                            return cls(uuid_value=uuid_str)
+                    # If no type prefix or wrong prefix, try whole string as UUID
+                    return cls(uuid_value=v)
+                elif isinstance(v, UUID):
+                    return cls(uuid_value=v)
+                elif isinstance(v, cls):
+                    return v
+                elif isinstance(v, TypedUUID):
+                    if v.type_id != type_id:
+                        raise ValueError(f"Invalid type_id for {cls.__name__}")
+                    return cls(v.uuid)
+            except ValueError as e:
+                raise ValueError(f"Invalid {cls.__name__} format: {str(e)}")
+            raise ValueError(f"Invalid type for {cls.__name__}")
 
-    # Create the new class
-    new_class = type(
-        class_name_with_suffix,
-        (TypedUUID,),
-        {
-            '_type_id': type_id,
-            '__init__': __init__,
-            'validate': validate,
-            'generate': generate,
-            '__doc__': f"""A TypedUUID subclass for {class_name} identifiers with type_id '{type_id}'."""
-        }
-    )
+        @classmethod
+        def generate(cls) -> T:
+            """Generate a new instance with a random UUID."""
+            return cls()
 
-    # Register the new class
-    TypedUUID._class_registry[type_id] = new_class
+        # Create the new class
+        new_class = type(
+            class_name_with_suffix,
+            (TypedUUID,),
+            {
+                '_type_id': type_id,
+                '__init__': __init__,
+                'validate': validate,
+                'generate': generate,
+                '__doc__': f"""A TypedUUID subclass for {class_name} identifiers with type_id '{type_id}'."""
+            }
+        )
 
-    # Add adapter methods if available
+        # Register the new class
+        TypedUUID._class_registry[type_id] = new_class
+
+    # Add adapter methods if available (outside lock - these don't modify registry)
     try:
         from .adapters.sqlalchemy import add_sqlalchemy_methods, SQLALCHEMY_AVAILABLE
         if SQLALCHEMY_AVAILABLE:

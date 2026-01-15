@@ -1,15 +1,16 @@
 # typed_uuid/adapters/sqlalchemy.py
+import logging
+from typing import Type, Optional
+
 try:
     from sqlalchemy import TypeDecorator, String
     SQLALCHEMY_AVAILABLE = True
 except ImportError:
     SQLALCHEMY_AVAILABLE = False
 
-from typing import Type, Optional
 from ..core import TypedUUID
 
-import logging
-logger = logging.getLogger('mage.typed_uuid.sqlalchemy')
+logger = logging.getLogger(__name__)
 
 
 def add_sqlalchemy_methods(cls: Type[TypedUUID]) -> None:
@@ -24,8 +25,9 @@ def add_sqlalchemy_methods(cls: Type[TypedUUID]) -> None:
         return self._instance_type_id, str(self._uuid)
 
     @classmethod
-    def __from_db_value__(cls, type_id, uuid_value):
-        return cls(type_id, uuid_value)
+    def __from_db_value__(cls, value: str) -> 'TypedUUID':
+        """Reconstruct TypedUUID from database string value."""
+        return cls.from_string(value)
 
     # Add methods to class
     cls.replace = replace
@@ -33,10 +35,8 @@ def add_sqlalchemy_methods(cls: Type[TypedUUID]) -> None:
     cls.__from_db_value__ = __from_db_value__
 
 
-logger = logging.getLogger(__name__)
-
-
-class TypedUUIDType(TypeDecorator):
+if SQLALCHEMY_AVAILABLE:
+    class TypedUUIDType(TypeDecorator):
         impl = String
         cache_ok = True
 
@@ -70,25 +70,30 @@ class TypedUUIDType(TypeDecorator):
             return self.python_type.from_string(value)
 
 
-def create_typed_uuid_type(type_id: str) -> Type[TypedUUIDType]:
-    """
-    Create a specific SQLAlchemy type class for a TypedUUID type.
+    def create_typed_uuid_type(type_id: str) -> Type[TypedUUIDType]:
+        """
+        Create a specific SQLAlchemy type class for a TypedUUID type.
 
-    Args:
-        type_id: The type identifier for the UUID
+        Args:
+            type_id: The type identifier for the UUID
 
-    Returns:
-        Type[TypedUUIDType]: A new TypedUUIDType subclass specific to the type_id
-    """
+        Returns:
+            Type[TypedUUIDType]: A new TypedUUIDType subclass specific to the type_id
+        """
 
-    class GeneratedTypedUUIDType(TypedUUIDType):
-        cache_ok = True  # Enable caching since the type is immutable
-        def __init__(self):
-            super().__init__(type_id)
+        class GeneratedTypedUUIDType(TypedUUIDType):
+            cache_ok = True  # Enable caching since the type is immutable
 
-        @property
-        def python_type(self):
-            return TypedUUID.get_class_by_type_id(type_id)
+            def __init__(self):
+                super().__init__(type_id)
 
-    GeneratedTypedUUIDType.__name__ = f"{type_id.capitalize()}UUIDType"
-    return GeneratedTypedUUIDType
+            @property
+            def python_type(self):
+                return TypedUUID.get_class_by_type_id(type_id)
+
+        GeneratedTypedUUIDType.__name__ = f"{type_id.capitalize()}UUIDType"
+        return GeneratedTypedUUIDType
+else:
+    # Provide placeholder when SQLAlchemy is not available
+    TypedUUIDType = None
+    create_typed_uuid_type = None

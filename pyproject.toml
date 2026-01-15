@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "typed-uuid"
+version = "1.0.0"
+description = "Type-safe UUID management with prefix identification for Python"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [
+    { name = "TypedUUID Contributors" }
+]
+keywords = [
+    "uuid",
+    "typed",
+    "type-safe",
+    "identifier",
+    "sqlalchemy",
+    "pydantic",
+    "fastapi",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+sqlalchemy = ["sqlalchemy>=1.4"]
+pydantic = ["pydantic>=2.0", "pydantic-core>=2.0"]
+fastapi = ["fastapi>=0.100.0", "pydantic>=2.0", "pydantic-core>=2.0"]
+all = [
+    "sqlalchemy>=1.4",
+    "pydantic>=2.0",
+    "pydantic-core>=2.0",
+    "fastapi>=0.100.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "sqlalchemy>=1.4",
+    "pydantic>=2.0",
+    "pydantic-core>=2.0",
+    "fastapi>=0.100.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/typed-uuid"
+Documentation = "https://github.com/yourusername/typed-uuid#readme"
+Repository = "https://github.com/yourusername/typed-uuid"
+Issues = "https://github.com/yourusername/typed-uuid/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["typed_uuid"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "typed_uuid/**/*.py",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["typed_uuid"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

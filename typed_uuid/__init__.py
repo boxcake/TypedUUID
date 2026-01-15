@@ -11,10 +11,10 @@ except ImportError:
     create_typed_uuid_type = None
 
 try:
-    from .adapters.pydantic import add_pydantic_support, PYDANTIC_AVAILABLE
+    from .adapters.pydantic import add_pydantic_methods, PYDANTIC_AVAILABLE
 except ImportError:
     PYDANTIC_AVAILABLE = False
-    add_pydantic_support = None
+    add_pydantic_methods = None
 
 __all__ = [
     'TypedUUID',
@@ -29,4 +29,4 @@ if SQLALCHEMY_AVAILABLE:
     __all__.extend(['TypedUUIDType', 'create_typed_uuid_type'])
 
 if PYDANTIC_AVAILABLE:
-    __all__.append('add_pydantic_support')
+    __all__.append('add_pydantic_methods')
