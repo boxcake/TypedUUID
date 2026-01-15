@@ -74,12 +74,11 @@ class TypedUUID:
     each type_id is unique and allowing retrieval of existing classes.
 
     Attributes:
-        MAX_TYPE_LENGTH (int): Maximum allowed length for type_id prefix
         _type_id (ClassVar[str]): Class-level type identifier
         _class_registry (ClassVar[Dict[str, Type['TypedUUID']]]): Registry of TypedUUID classes
 
     Args:
-        type_id (str): The type identifier prefix
+        type_id (str): The type identifier prefix (alphanumeric only)
         uuid_value (Optional[Union[UUID, str, 'TypedUUID']]): Initial UUID value
 
     Raises:
@@ -96,7 +95,6 @@ class TypedUUID:
 
     __slots__ = ('_uuid', '_instance_type_id')
 
-    MAX_TYPE_LENGTH: int = 8
     _type_id: ClassVar[str] = None
     _uuid_pattern: ClassVar[re.Pattern] = re.compile(
         r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -106,7 +104,7 @@ class TypedUUID:
     _registry_lock: ClassVar[threading.Lock] = threading.Lock()
     # Short format pattern: type_base62encoded
     _short_pattern: ClassVar[re.Pattern] = re.compile(
-        r'^([a-zA-Z0-9]{1,8})_([0-9A-Za-z]+)$'
+        r'^([a-zA-Z0-9]+)_([0-9A-Za-z]+)$'
     )
 
     @classmethod
@@ -256,7 +254,7 @@ class TypedUUID:
             # If that fails, try parsing as type-prefixed UUID
             if '-' in value:
                 parts = value.split('-', 1)
-                if len(parts) == 2 and len(parts[0]) <= cls.MAX_TYPE_LENGTH:
+                if len(parts) == 2 and parts[0].isalnum():
                     try:
                         # Verify the second part is a valid UUID
                         UUID(parts[1])
@@ -281,8 +279,6 @@ class TypedUUID:
             raise InvalidTypeIDError(f"type_id must be a string, not {type(type_id)}")
         if not type_id.strip():
             raise InvalidTypeIDError("type_id cannot be empty")
-        if len(type_id) > cls.MAX_TYPE_LENGTH:
-            raise InvalidTypeIDError(f"type_id must be {cls.MAX_TYPE_LENGTH} characters or fewer")
         if not type_id.isalnum():
             raise InvalidTypeIDError("type_id must be alphanumeric")
 
@@ -360,8 +356,8 @@ class TypedUUID:
     def format_pattern(cls) -> str:
         """Get the regex pattern for UUID format validation."""
         return (
-            f"^[a-zA-Z0-9]{{1,{cls.MAX_TYPE_LENGTH}}}-"
-            f"[0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}}$"
+            r"^[a-zA-Z0-9]+-"
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         )
 
     # Type registry methods
@@ -539,7 +535,7 @@ class TypedUUID:
         # Try standard format (type-uuid)
         if '-' in value:
             parts = value.split('-', 1)
-            if len(parts) == 2 and len(parts[0]) <= cls.MAX_TYPE_LENGTH:
+            if len(parts) == 2 and parts[0].isalnum():
                 type_id = parts[0]
                 # Check if it looks like a typed UUID (not a plain UUID)
                 try:
@@ -589,7 +585,7 @@ def create_typed_uuid_class(class_name: str, type_id: str) -> Type[T]:
 
     Args:
         class_name: Name for the new class
-        type_id: Type identifier for the UUID (max 8 alphanumeric characters)
+        type_id: Type identifier for the UUID (alphanumeric characters only)
 
     Returns:
         Type[T]: New or existing TypedUUID subclass
