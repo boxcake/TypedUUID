@@ -15,31 +15,29 @@ except ImportError:
 def add_pydantic_methods(cls: Type[TypedUUID]) -> None:
     """Add Pydantic-specific methods to a TypedUUID class."""
 
-    @classmethod
     def __get_pydantic_core_schema__(
-            cls, source_type: Any, handler: GetCoreSchemaHandler
+            cls_inner, source_type: Any, handler: GetCoreSchemaHandler
     ) -> CoreSchema:
         """Define the Pydantic core schema for validation"""
         return core_schema.json_or_python_schema(
             json_schema=core_schema.union_schema([
                 core_schema.str_schema(),
-                core_schema.no_info_plain_validator_function(cls.validate),
+                core_schema.no_info_plain_validator_function(cls_inner.validate),
             ]),
             python_schema=core_schema.union_schema([
-                core_schema.is_instance_schema(cls),
-                core_schema.no_info_plain_validator_function(cls.validate),
+                core_schema.is_instance_schema(cls_inner),
+                core_schema.no_info_plain_validator_function(cls_inner.validate),
             ]),
             serialization=core_schema.to_string_ser_schema(),
         )
 
-    @classmethod
     def __get_pydantic_json_schema__(
-            cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+            cls_inner, core_schema_arg: CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
-        json_schema = handler(core_schema)
+        json_schema = handler(core_schema_arg)
         json_schema.update(
             type="string",
-            pattern=cls.format_pattern(),
+            pattern=cls_inner.format_pattern(),
             format="typed-uuid"
         )
         return json_schema
@@ -48,15 +46,14 @@ def add_pydantic_methods(cls: Type[TypedUUID]) -> None:
         """Support for JSON serialization."""
         return str(self)
 
-    @classmethod
-    def validate_json(cls, value: str) -> 'TypedUUID':
+    def validate_json(cls_inner, value: str) -> 'TypedUUID':
         """Validate and create instance from JSON string"""
         try:
             if isinstance(value, str):
-                return cls.from_string(value)
-            raise ValueError(f"Invalid JSON value for {cls.__name__}")
+                return cls_inner.from_string(value)
+            raise ValueError(f"Invalid JSON value for {cls_inner.__name__}")
         except ValueError as e:
-            raise ValueError(f"Invalid {cls.__name__} format: {str(e)}")
+            raise ValueError(f"Invalid {cls_inner.__name__} format: {str(e)}")
 
     def model_dump(self, **kwargs):
         """Support for Pydantic model serialization"""
