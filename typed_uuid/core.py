@@ -337,7 +337,7 @@ class TypedUUID:
         # If that fails, then check if it's a typed format
         if '-' in uuid_str:
             type_id, uuid_part = uuid_str.split('-', 1)
-            if len(type_id) <= self.MAX_TYPE_LENGTH:
+            if type_id.isalnum():
                 # Verify it's a valid UUID part first
                 try:
                     if self._uuid_pattern.match(uuid_part):
