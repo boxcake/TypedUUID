@@ -64,19 +64,20 @@ raw_uuid = user_id.get_uuid()  # '550e8400-e29b-41d4-a716-446655440000'
 
 ## Type ID Rules
 
-- Must be 1-8 characters long
 - Must be alphanumeric only (a-z, A-Z, 0-9)
-- Case-sensitive
+- Case-sensitive (`user` and `User` are different types)
+- Cannot be empty
 
 ```python
 # Valid type IDs
 UserUUID = create_typed_uuid_class('User', 'user')
 OrderUUID = create_typed_uuid_class('Order', 'order')
 ProductUUID = create_typed_uuid_class('Product', 'prod')
+OrgUUID = create_typed_uuid_class('Organization', 'organization')  # Long type IDs are fine
 
 # Invalid type IDs (will raise InvalidTypeIDError)
-create_typed_uuid_class('Invalid', 'too-long-id')  # Too long
 create_typed_uuid_class('Invalid', 'user-id')      # Contains hyphen
+create_typed_uuid_class('Invalid', 'user@id')      # Contains special character
 create_typed_uuid_class('Invalid', '')             # Empty
 ```
 
