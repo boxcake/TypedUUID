@@ -1,5 +1,10 @@
 # TypedUUID
 
+[![CI](https://github.com/boxcake/TypedUUID/actions/workflows/ci.yml/badge.svg)](https://github.com/boxcake/TypedUUID/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/typed-uuid.svg)](https://badge.fury.io/py/typed-uuid)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A robust Python library for type-safe UUID management with prefix identification. TypedUUID enhances standard UUIDs by adding a type prefix, making it easy to identify what kind of entity a UUID represents at a glance.
 
 ## Features
