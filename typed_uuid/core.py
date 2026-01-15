@@ -13,7 +13,7 @@ Basic usage:
 #    'user-550e8400-e29b-41d4-a716-446655440000'
 """
 
-from typing import Any, Type, Optional, TypeVar, cast, ClassVar, Union, Dict, List, Set
+from typing import Any, Type, Optional, TypeVar, cast, ClassVar, Union, Dict, List, Set, Tuple
 from uuid import UUID, uuid4
 import re
 import threading
@@ -23,6 +23,47 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 T = TypeVar('T', bound='TypedUUID')
+
+# Base62 alphabet for short encoding
+_BASE62_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+_BASE62_MAP = {c: i for i, c in enumerate(_BASE62_ALPHABET)}
+
+
+def _encode_base62(num: int) -> str:
+    """Encode an integer to base62 string."""
+    if num == 0:
+        return _BASE62_ALPHABET[0]
+
+    result = []
+    while num:
+        num, remainder = divmod(num, 62)
+        result.append(_BASE62_ALPHABET[remainder])
+    return ''.join(reversed(result))
+
+
+def _decode_base62(s: str) -> int:
+    """Decode a base62 string to integer."""
+    num = 0
+    for char in s:
+        if char not in _BASE62_MAP:
+            raise ValueError(f"Invalid base62 character: {char}")
+        num = num * 62 + _BASE62_MAP[char]
+    return num
+
+
+def _reconstruct_typed_uuid(type_id: str, uuid_str: str) -> 'TypedUUID':
+    """
+    Reconstruct a TypedUUID instance from pickle data.
+
+    This function is used by __reduce__ to enable pickling of dynamically
+    created TypedUUID subclasses.
+    """
+    # Get the class from registry, or create it if needed
+    cls = TypedUUID.get_class_by_type_id(type_id)
+    if cls is None:
+        # Class not registered yet, create a generic one
+        cls = create_typed_uuid_class(type_id.capitalize(), type_id)
+    return cls(uuid_value=uuid_str)
 
 
 class TypedUUID:
@@ -53,6 +94,8 @@ class TypedUUID:
     #    True
     """
 
+    __slots__ = ('_uuid', '_instance_type_id')
+
     MAX_TYPE_LENGTH: int = 8
     _type_id: ClassVar[str] = None
     _uuid_pattern: ClassVar[re.Pattern] = re.compile(
@@ -61,6 +104,10 @@ class TypedUUID:
     )
     _class_registry: ClassVar[Dict[str, Type['TypedUUID']]] = {}
     _registry_lock: ClassVar[threading.Lock] = threading.Lock()
+    # Short format pattern: type_base62encoded
+    _short_pattern: ClassVar[re.Pattern] = re.compile(
+        r'^([a-zA-Z0-9]{1,8})_([0-9A-Za-z]+)$'
+    )
 
     @classmethod
     def get_registered_class(cls, type_id: str) -> Optional[Type['TypedUUID']]:
@@ -372,6 +419,143 @@ class TypedUUID:
         """Default JSON encoder for TypedUUID objects."""
         return str(obj)
 
+    # Short encoding/decoding methods
+    @property
+    def short(self) -> str:
+        """
+        Get the short base62-encoded representation.
+
+        Returns:
+            str: Short format like 'user_7n42DGM5Tflk9n8mt7Fhc7'
+
+        Example:
+            >>> user_id = UserUUID()
+            >>> user_id.short
+            'user_7n42DGM5Tflk9n8mt7Fhc7'
+        """
+        # Convert UUID to integer and encode as base62
+        uuid_int = self._uuid.int
+        encoded = _encode_base62(uuid_int)
+        return f"{self._instance_type_id}_{encoded}"
+
+    @classmethod
+    def from_short(cls, short_str: str) -> 'TypedUUID':
+        """
+        Create a TypedUUID from a short base62-encoded string.
+
+        Args:
+            short_str: Short format string like 'user_7n42DGM5Tflk9n8mt7Fhc7'
+
+        Returns:
+            TypedUUID: Instance of the TypedUUID subclass
+
+        Raises:
+            InvalidUUIDError: If format is invalid
+            InvalidTypeIDError: If type doesn't match class type
+
+        Example:
+            >>> user_id = UserUUID.from_short('user_7n42DGM5Tflk9n8mt7Fhc7')
+        """
+        match = cls._short_pattern.match(short_str)
+        if not match:
+            raise InvalidUUIDError(f"Invalid short format: {short_str}")
+
+        type_id, encoded = match.groups()
+
+        # Validate type_id if class has one
+        if cls._type_id is not None and type_id != cls._type_id:
+            raise InvalidTypeIDError(
+                f"Type mismatch: expected {cls._type_id}, got {type_id}"
+            )
+
+        try:
+            uuid_int = _decode_base62(encoded)
+            uuid_obj = UUID(int=uuid_int)
+            return cls(uuid_value=uuid_obj)
+        except (ValueError, OverflowError) as e:
+            raise InvalidUUIDError(f"Invalid short encoding: {e}")
+
+    # Pickle support
+    def __reduce__(self) -> Tuple[Any, ...]:
+        """
+        Support for pickle serialization.
+
+        Returns a tuple that allows pickle to reconstruct this object.
+        Uses _reconstruct_typed_uuid helper for dynamically created classes.
+        """
+        return (
+            _reconstruct_typed_uuid,
+            (self._instance_type_id, str(self._uuid))
+        )
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Get state for pickle serialization."""
+        return {
+            'type_id': self._instance_type_id,
+            'uuid': str(self._uuid)
+        }
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        """Restore state from pickle deserialization."""
+        self._instance_type_id = state['type_id']
+        self._uuid = UUID(state['uuid'])
+
+    # Auto-parsing from registry
+    @classmethod
+    def parse(cls, value: str) -> 'TypedUUID':
+        """
+        Parse a typed UUID string and return the appropriate TypedUUID subclass instance.
+
+        This method automatically detects the type from the string and returns
+        an instance of the correct registered TypedUUID subclass.
+
+        Args:
+            value: String in format 'type-uuid' or 'type_base62' (short format)
+
+        Returns:
+            TypedUUID: Instance of the appropriate TypedUUID subclass
+
+        Raises:
+            InvalidUUIDError: If format is invalid or type is not registered
+
+        Example:
+            >>> UserUUID = create_typed_uuid_class('User', 'user')
+            >>> user_id = TypedUUID.parse('user-550e8400-e29b-41d4-a716-446655440000')
+            >>> isinstance(user_id, UserUUID)
+            True
+        """
+        if not value:
+            raise InvalidUUIDError("Cannot parse empty string")
+
+        # Try short format first (type_base62)
+        short_match = cls._short_pattern.match(value)
+        if short_match:
+            type_id, _ = short_match.groups()
+            target_cls = cls.get_class_by_type_id(type_id)
+            if target_cls is None:
+                raise InvalidUUIDError(f"Unknown type_id: {type_id}")
+            return target_cls.from_short(value)
+
+        # Try standard format (type-uuid)
+        if '-' in value:
+            parts = value.split('-', 1)
+            if len(parts) == 2 and len(parts[0]) <= cls.MAX_TYPE_LENGTH:
+                type_id = parts[0]
+                # Check if it looks like a typed UUID (not a plain UUID)
+                try:
+                    # If the whole thing is a valid UUID, it's not typed
+                    UUID(value)
+                except ValueError:
+                    # Not a plain UUID, so check for registered type
+                    target_cls = cls.get_class_by_type_id(type_id)
+                    if target_cls is not None:
+                        return target_cls.from_string(value)
+                    raise InvalidUUIDError(f"Unknown type_id: {type_id}")
+
+        raise InvalidUUIDError(
+            f"Invalid format: {value}. Expected 'type-uuid' or 'type_base62'"
+        )
+
     # Helper for IDE class method resolution since path_param is added dynamically based on FastAPI availability
     @classmethod
     def path_param(cls, description: str = None) -> Any:
@@ -454,11 +638,12 @@ def create_typed_uuid_class(class_name: str, type_id: str) -> Type[T]:
             """Generate a new instance with a random UUID."""
             return cls()
 
-        # Create the new class
+        # Create the new class with empty __slots__ to maintain memory efficiency
         new_class = type(
             class_name_with_suffix,
             (TypedUUID,),
             {
+                '__slots__': (),  # Empty slots - parent has the actual slots
                 '_type_id': type_id,
                 '__init__': __init__,
                 'validate': validate,

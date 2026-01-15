@@ -253,6 +253,64 @@ user_id.__json__()  # 'user-550e8400-e29b-41d4-a716-446655440000'
 str(user_id)  # 'user-550e8400-e29b-41d4-a716-446655440000'
 ```
 
+## Short Encoding
+
+TypedUUID supports compact base62 encoding for URL-friendly identifiers:
+
+```python
+from typed_uuid import create_typed_uuid_class
+
+UserUUID = create_typed_uuid_class('User', 'user')
+user_id = UserUUID()
+
+# Get short representation
+print(user_id.short)  # user_7n42DGM5Tflk9n8mt7Fhc7
+
+# Decode from short format
+decoded = UserUUID.from_short('user_7n42DGM5Tflk9n8mt7Fhc7')
+assert decoded.uuid == user_id.uuid
+```
+
+The short format uses underscore (`_`) as separator to distinguish from the standard hyphen-separated format.
+
+## Auto-Parsing
+
+Parse typed UUIDs without knowing the type in advance:
+
+```python
+from typed_uuid import TypedUUID, create_typed_uuid_class
+
+UserUUID = create_typed_uuid_class('User', 'user')
+OrderUUID = create_typed_uuid_class('Order', 'order')
+
+# Auto-detect type from string (standard format)
+entity = TypedUUID.parse('user-550e8400-e29b-41d4-a716-446655440000')
+assert isinstance(entity, UserUUID)
+
+# Also works with short format
+entity = TypedUUID.parse('order_7n42DGM5Tflk9n8mt7Fhc7')
+assert isinstance(entity, OrderUUID)
+```
+
+## Pickle Support
+
+TypedUUID instances can be pickled and unpickled:
+
+```python
+import pickle
+from typed_uuid import create_typed_uuid_class
+
+UserUUID = create_typed_uuid_class('User', 'user')
+user_id = UserUUID()
+
+# Pickle and restore
+data = pickle.dumps(user_id)
+restored = pickle.loads(data)
+
+assert restored.uuid == user_id.uuid
+assert isinstance(restored, UserUUID)
+```
+
 ## Exceptions
 
 | Exception | Description |

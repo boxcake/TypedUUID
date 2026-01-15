@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "typed-uuid"
-version = "1.0.0"
+version = "1.1.0"
 description = "Type-safe UUID management with prefix identification for Python"
 readme = "README.md"
 license = "MIT"
@@ -56,10 +56,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/typed-uuid"
-Documentation = "https://github.com/yourusername/typed-uuid#readme"
-Repository = "https://github.com/yourusername/typed-uuid"
-Issues = "https://github.com/yourusername/typed-uuid/issues"
+Homepage = "https://github.com/boxcake/TypedUUID"
+Documentation = "https://github.com/boxcake/TypedUUID#readme"
+Repository = "https://github.com/boxcake/TypedUUID"
+Issues = "https://github.com/boxcake/TypedUUID/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["typed_uuid"]
