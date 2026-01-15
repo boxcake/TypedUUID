@@ -670,4 +670,11 @@ def create_typed_uuid_class(class_name: str, type_id: str) -> Type[T]:
     except ImportError:
         pass
 
+    try:
+        from .adapters.fastapi import add_fastapi_methods, FASTAPI_AVAILABLE
+        if FASTAPI_AVAILABLE:
+            add_fastapi_methods(new_class)
+    except ImportError:
+        pass
+
     return cast(Type[T], new_class)

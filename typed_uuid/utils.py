@@ -1,12 +1,12 @@
 # typed_uuid/utils.py
-from typing import Tuple, Type, Union, Optional
+from typing import Any, Tuple, Type, Union
 from .core import TypedUUID, create_typed_uuid_class
 
 
 def create_typed_uuid_classes(
         name: str,
         type_id: str
-) -> Union[Tuple[Type[TypedUUID], Type['TypedUUIDType']], Type[TypedUUID]]:
+) -> Union[Tuple[Type[TypedUUID], Any], Type[TypedUUID]]:
     """
     Create a TypedUUID class and optionally its corresponding SQLAlchemy type if available.
 
