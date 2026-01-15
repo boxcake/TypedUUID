@@ -22,21 +22,21 @@ class TestCreateTypedUUIDClass:
         XUUID = create_typed_uuid_class('X', 'x')
         assert XUUID._type_id == 'x'
 
-    def test_create_class_with_max_length_type_id(self):
-        """Test creating a class with maximum length type_id (8 chars)."""
-        LongUUID = create_typed_uuid_class('Long', 'abcd1234')
-        assert LongUUID._type_id == 'abcd1234'
+    def test_create_class_with_long_type_id(self):
+        """Test creating a class with a long type_id."""
+        LongUUID = create_typed_uuid_class('Long', 'organization')
+        assert LongUUID._type_id == 'organization'
+
+    def test_create_class_with_very_long_type_id(self):
+        """Test creating a class with a very long type_id."""
+        VeryLongUUID = create_typed_uuid_class('VeryLong', 'verylongtypeidfortesting')
+        assert VeryLongUUID._type_id == 'verylongtypeidfortesting'
 
     def test_duplicate_type_id_returns_same_class(self):
         """Test that creating a class with existing type_id returns the same class."""
         UserUUID1 = create_typed_uuid_class('User', 'user')
         UserUUID2 = create_typed_uuid_class('User', 'user')
         assert UserUUID1 is UserUUID2
-
-    def test_invalid_type_id_too_long(self):
-        """Test that type_id longer than 8 characters raises error."""
-        with pytest.raises(InvalidTypeIDError):
-            create_typed_uuid_class('Invalid', 'toolongid')
 
     def test_invalid_type_id_empty(self):
         """Test that empty type_id raises error."""

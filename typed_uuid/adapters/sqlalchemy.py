@@ -41,9 +41,8 @@ if SQLALCHEMY_AVAILABLE:
         cache_ok = True
 
         def __init__(self, type_id: str):
-            if len(type_id) > TypedUUID.MAX_TYPE_LENGTH:
-                raise ValueError(f"type_id must be {TypedUUID.MAX_TYPE_LENGTH} characters or fewer")
-            super().__init__(TypedUUID.MAX_TYPE_LENGTH + 37)
+            # Column size: type_id length + hyphen + UUID (36 chars)
+            super().__init__(len(type_id) + 37)
             self.type_id = type_id
 
         @property
