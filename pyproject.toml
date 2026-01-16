@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
-    { name = "TypedUUID Contributors" }
+    { name = "Jonathan Baker", email = "jon@boxcake.net" }
 ]
 keywords = [
     "uuid",
