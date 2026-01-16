@@ -53,10 +53,15 @@ dev = [
     "pydantic-core>=2.0",
     "fastapi>=0.100.0",
 ]
+docs = [
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.0",
+    "mkdocstrings[python]>=0.24",
+]
 
 [project.urls]
 Homepage = "https://github.com/boxcake/TypedUUID"
-Documentation = "https://github.com/boxcake/TypedUUID#readme"
+Documentation = "https://boxcake.github.io/TypedUUID/"
 Repository = "https://github.com/boxcake/TypedUUID"
 Issues = "https://github.com/boxcake/TypedUUID/issues"
 
